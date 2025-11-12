@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tolaria - MTG Rules AI Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #1e3c72;
+            font-weight: 600;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #2a5298;
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .cards-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .cards-input-container input {
+            flex: 1;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .card-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976D2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .card-tag .remove {
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #result {
+            display: none;
+        }
+
+        #result.active {
+            display: block;
+        }
+
+        .explanation {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2a5298;
+        }
+
+        .explanation h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+        }
+
+        .rules-references {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .rules-references h4 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .rules-references ul {
+            list-style-position: inside;
+            color: #555;
+        }
+
+        #stackVisualization {
+            margin-top: 20px;
+        }
+
+        .example-questions {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .example-questions h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .example-question {
+            padding: 8px;
+            margin: 5px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .example-question:hover {
+            background: rgba(255, 193, 7, 0.2);
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #f44336;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧙‍♂️ Tolaria</h1>
+            <p>AI Agent per Regole e Interazioni di Magic: The Gathering</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Panel -->
+            <div class="card">
+                <h2>Fai una Domanda</h2>
+
+                <div class="input-group">
+                    <label for="question">Domanda sulle regole o interazioni:</label>
+                    <textarea
+                        id="question"
+                        placeholder="Es: Come si risolve la stack se Player 1 gioca Lightning Bolt e Player 2 risponde con Counterspell?"
+                    ></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Carte coinvolte:</label>
+                    <div class="cards-input-container">
+                        <input
+                            type="text"
+                            id="cardInput"
+                            placeholder="Nome carta (es: Lightning Bolt)"
+                            onkeypress="if(event.key === 'Enter') addCard()"
+                        >
+                        <button class="btn btn-secondary" onclick="addCard()">Aggiungi</button>
+                    </div>
+                    <div id="cardsList"></div>
+                </div>
+
+                <button class="btn btn-primary" onclick="askQuestion()" id="submitBtn">
+                    🔍 Analizza Interazione
+                </button>
+
+                <div class="example-questions">
+                    <h4>💡 Esempi di domande:</h4>
+                    <div class="example-question" onclick="loadExample(1)">
+                        • Counterspell vs Lightning Bolt
+                    </div>
+                    <div class="example-question" onclick="loadExample(2)">
+                        • Giant Growth in risposta a Lightning Bolt
+                    </div>
+                    <div class="example-question" onclick="loadExample(3)">
+                        • Come funziona la priorità?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="card">
+                <h2>Risultati</h2>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analizzando le carte e le regole...</p>
+                </div>
+
+                <div id="error" style="display: none;"></div>
+
+                <div id="result">
+                    <div class="explanation">
+                        <h3>📖 Spiegazione</h3>
+                        <div id="explanation"></div>
+                    </div>
+
+                    <div class="rules-references" id="rulesSection">
+                        <h4>📚 Riferimenti alle Regole</h4>
+                        <ul id="rulesList"></ul>
+                    </div>
+
+                    <div id="stackVisualization"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cards = [];
+
+        function addCard() {
+            const input = document.getElementById('cardInput');
+            const cardName = input.value.trim();
+
+            if (cardName && !cards.includes(cardName)) {
+                cards.push(cardName);
+                updateCardsList();
+                input.value = '';
+            }
+        }
+
+        function removeCard(index) {
+            cards.splice(index, 1);
+            updateCardsList();
+        }
+
+        function updateCardsList() {
+            const container = document.getElementById('cardsList');
+            container.innerHTML = cards.map((card, index) => `
+                <span class="card-tag">
+                    ${card}
+                    <span class="remove" onclick="removeCard(${index})">×</span>
+                </span>
+            `).join('');
+        }
+
+        function loadExample(example) {
+            const questionInput = document.getElementById('question');
+
+            if (example === 1) {
+                questionInput.value = "Player 1 gioca Lightning Bolt con target Player 2. Player 2 risponde con Counterspell su Lightning Bolt. Come si risolve la stack?";
+                cards = ['Lightning Bolt', 'Counterspell'];
+            } else if (example === 2) {
+                questionInput.value = "Player 1 gioca Giant Growth sulla sua creatura. Player 2 risponde con Lightning Bolt sulla stessa creatura. Player 1 gioca un altro Giant Growth. La creatura sopravvive?";
+                cards = ['Giant Growth', 'Lightning Bolt'];
+            } else if (example === 3) {
+                questionInput.value = "Come funziona la priorità quando si giocano spell istantanei?";
+                cards = [];
+            }
+
+            updateCardsList();
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+
+            if (!question) {
+                showError('Per favore inserisci una domanda');
+                return;
+            }
+
+            if (cards.length === 0) {
+                showError('Per favore aggiungi almeno una carta');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('submitBtn').disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        cards: cards
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Errore: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+
+            } catch (error) {
+                showError(`Errore nella richiesta: ${error.message}`);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('result').classList.add('active');
+
+            // Display explanation
+            document.getElementById('explanation').innerHTML =
+                data.explanation.replace(/\n/g, '<br>');
+
+            // Display rules references
+            const rulesList = document.getElementById('rulesList');
+            if (data.rules_references && data.rules_references.length > 0) {
+                rulesList.innerHTML = data.rules_references
+                    .map(rule => `<li>${rule}</li>`)
+                    .join('');
+                document.getElementById('rulesSection').style.display = 'block';
+            } else {
+                document.getElementById('rulesSection').style.display = 'none';
+            }
+
+            // Display stack visualization
+            if (data.stack_visualization && data.stack_visualization.length > 0) {
+                displayStackVisualization(data.stack_visualization, data.resolution_steps);
+            }
+        }
+
+        function displayStackVisualization(stack, steps) {
+            const container = document.getElementById('stackVisualization');
+
+            let html = '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">';
+            html += '<h3 style="color: #1e3c72; margin-bottom: 15px;">📊 Visualizzazione Stack</h3>';
+
+            // Stack order
+            html += '<div style="margin-bottom: 20px;">';
+            html += '<h4 style="color: #2a5298;">Stack (dall\'alto verso il basso):</h4>';
+            html += '<ol style="padding-left: 25px;">';
+
+            for (let i = stack.length - 1; i >= 0; i--) {
+                const item = stack[i];
+                html += `<li style="margin: 5px 0;"><strong>${item.card.name}</strong> - ${item.controller}</li>`;
+            }
+
+            html += '</ol></div>';
+
+            // Resolution steps
+            if (steps && steps.length > 0) {
+                html += '<div>';
+                html += '<h4 style="color: #2a5298;">Risoluzione:</h4>';
+                html += '<ol style="padding-left: 25px;">';
+
+                steps.forEach(step => {
+                    html += `<li style="margin: 10px 0;">
+                        <strong>${step.action}</strong><br>
+                        <small style="color: #666;">${step.description}</small>
+                    </li>`;
+                });
+
+                html += '</ol></div>';
+            }
+
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<strong>Errore:</strong> ${message}`;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

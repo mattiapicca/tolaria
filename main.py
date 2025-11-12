@@ -1,0 +1,113 @@
+"""
+Tolaria - MTG Rules & Stack Interaction AI Agent
+Main FastAPI application entry point
+"""
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from typing import List, Optional
+import uvicorn
+import os
+from dotenv import load_dotenv
+
+from api.scryfall import ScryfallClient
+from rules.engine import RulesEngine
+from stack.resolver import StackResolver
+
+# Load environment variables
+load_dotenv()
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="Tolaria - MTG Rules AI Agent",
+    description="AI agent for Magic: The Gathering rules and stack interactions",
+    version="1.0.0"
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize components
+scryfall_client = ScryfallClient()
+rules_engine = RulesEngine(pdf_path="mtgrules.pdf")
+stack_resolver = StackResolver(scryfall_client, rules_engine)
+
+
+class QuestionRequest(BaseModel):
+    question: str
+    cards: List[str]
+    player_actions: Optional[List[dict]] = None
+
+
+class StackResponse(BaseModel):
+    stack_visualization: List[dict]
+    resolution_steps: List[dict]
+    explanation: str
+    rules_references: List[str]
+
+
+@app.get("/")
+async def root():
+    """Serve the frontend HTML page"""
+    return FileResponse("frontend/index.html")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+
+@app.get("/api/search-card/{card_name}")
+async def search_card(card_name: str):
+    """Search for a card using Scryfall API"""
+    try:
+        card_data = await scryfall_client.search_card(card_name)
+        return card_data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Card not found: {str(e)}")
+
+
+@app.post("/api/ask", response_model=StackResponse)
+async def ask_question(request: QuestionRequest):
+    """
+    Main endpoint for asking questions about MTG rules and stack interactions
+
+    Args:
+        question: The user's question about the interaction
+        cards: List of card names involved
+        player_actions: Optional list of player actions in sequence
+
+    Returns:
+        Stack visualization, resolution steps, and explanation
+    """
+    try:
+        # Resolve the stack and get explanation
+        result = await stack_resolver.resolve_interaction(
+            question=request.question,
+            card_names=request.cards,
+            player_actions=request.player_actions
+        )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True
+    )
