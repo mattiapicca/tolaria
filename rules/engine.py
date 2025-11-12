@@ -6,10 +6,10 @@ Uses Claude AI and vector database for intelligent rule retrieval and reasoning
 import os
 from typing import List, Dict, Optional
 import anthropic
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 
 from rules.parser import RulesParser
 
