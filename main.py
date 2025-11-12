@@ -36,10 +36,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize components
+# Initialize components (lazy loading for rules engine)
 scryfall_client = ScryfallClient()
-rules_engine = RulesEngine(pdf_path="mtgrules.pdf")
-stack_resolver = StackResolver(scryfall_client, rules_engine)
+rules_engine = None
+stack_resolver = None
+
+def get_rules_engine():
+    """Lazy initialization of rules engine"""
+    global rules_engine, stack_resolver
+    if rules_engine is None:
+        print("Initializing Rules Engine (this may take a few minutes)...")
+        rules_engine = RulesEngine(pdf_path="mtgrules.pdf")
+        stack_resolver = StackResolver(scryfall_client, rules_engine)
+        print("Rules Engine ready!")
+    return rules_engine, stack_resolver
 
 
 class QuestionRequest(BaseModel):
@@ -90,8 +100,11 @@ async def ask_question(request: QuestionRequest):
         Stack visualization, resolution steps, and explanation
     """
     try:
+        # Lazy load rules engine on first request
+        _, resolver = get_rules_engine()
+
         # Resolve the stack and get explanation
-        result = await stack_resolver.resolve_interaction(
+        result = await resolver.resolve_interaction(
             question=request.question,
             card_names=request.cards,
             player_actions=request.player_actions
