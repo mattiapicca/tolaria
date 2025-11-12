@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: tolaria
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt && pip install langchain-community
+    startCommand: python3 main.py
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.9.0
