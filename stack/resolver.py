@@ -3,9 +3,19 @@ Stack Resolver
 Handles the logic for resolving the MTG stack and explaining interactions
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from api.scryfall import ScryfallClient
-from rules.engine import RulesEngine
+
+# Support both RulesEngine and RulesEngineLite
+try:
+    from rules.engine import RulesEngine
+except ImportError:
+    RulesEngine = None
+
+try:
+    from rules.engine_lite import RulesEngineLite
+except ImportError:
+    RulesEngineLite = None
 
 
 class StackResolver:
@@ -13,7 +23,7 @@ class StackResolver:
     Resolves stack interactions and provides step-by-step explanations
     """
 
-    def __init__(self, scryfall_client: ScryfallClient, rules_engine: RulesEngine):
+    def __init__(self, scryfall_client: ScryfallClient, rules_engine):
         """
         Initialize stack resolver
 
