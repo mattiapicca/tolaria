@@ -4,21 +4,14 @@ Vercel serverless function entry point
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import os
-
-# Import app components
 import sys
 from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from api.scryfall import ScryfallClient
-from rules.engine_lite import RulesEngineLite  # Lightweight version for Vercel
-from stack.resolver import StackResolver
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -36,21 +29,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize components (lazy loading for rules engine)
-scryfall_client = ScryfallClient()
-rules_engine = None
-stack_resolver = None
+# Global variables for lazy loading
+_scryfall_client = None
+_rules_engine = None
+_stack_resolver = None
 
 
-def get_rules_engine():
-    """Lazy initialization of rules engine"""
-    global rules_engine, stack_resolver
-    if rules_engine is None:
-        print("Initializing Lightweight Rules Engine for Vercel...")
-        rules_engine = RulesEngineLite()  # Lightweight version without ChromaDB
-        stack_resolver = StackResolver(scryfall_client, rules_engine)
-        print("Rules Engine ready!")
-    return rules_engine, stack_resolver
+def get_components():
+    """Lazy initialization of all components"""
+    global _scryfall_client, _rules_engine, _stack_resolver
+
+    if _scryfall_client is None:
+        print("Initializing components...")
+
+        # Import only when needed
+        from api.scryfall import ScryfallClient
+        from rules.engine_lite import RulesEngineLite
+        from stack.resolver import StackResolver
+
+        _scryfall_client = ScryfallClient()
+        _rules_engine = RulesEngineLite()
+        _stack_resolver = StackResolver(_scryfall_client, _rules_engine)
+
+        print("Components ready!")
+
+    return _scryfall_client, _rules_engine, _stack_resolver
 
 
 class QuestionRequest(BaseModel):
@@ -90,7 +93,8 @@ async def health():
 async def search_card(card_name: str):
     """Search for a card using Scryfall API"""
     try:
-        card_data = await scryfall_client.search_card(card_name)
+        scryfall, _, _ = get_components()
+        card_data = await scryfall.search_card(card_name)
         return card_data
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Card not found: {str(e)}")
@@ -110,8 +114,8 @@ async def ask_question(request: QuestionRequest):
         Stack visualization, resolution steps, and explanation
     """
     try:
-        # Lazy load rules engine on first request
-        _, resolver = get_rules_engine()
+        # Lazy load components on first request
+        _, _, resolver = get_components()
 
         # Resolve the stack and get explanation
         result = await resolver.resolve_interaction(
