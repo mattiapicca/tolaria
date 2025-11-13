@@ -123,7 +123,10 @@ async def ask_question(request: QuestionRequest):
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
+        import traceback
+        error_detail = f"Error: {str(e)}\nTraceback: {traceback.format_exc()}"
+        print(error_detail)  # Log to Vercel
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 # Vercel serverless function handler
