@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from api.scryfall import ScryfallClient
-from rules.engine import RulesEngine
+from rules.engine_lite import RulesEngineLite  # Lightweight version for Vercel
 from stack.resolver import StackResolver
 
 # Initialize FastAPI app
@@ -46,8 +46,8 @@ def get_rules_engine():
     """Lazy initialization of rules engine"""
     global rules_engine, stack_resolver
     if rules_engine is None:
-        print("Initializing Rules Engine (loading pre-processed data)...")
-        rules_engine = RulesEngine()  # Uses pre-processed files by default
+        print("Initializing Lightweight Rules Engine for Vercel...")
+        rules_engine = RulesEngineLite()  # Lightweight version without ChromaDB
         stack_resolver = StackResolver(scryfall_client, rules_engine)
         print("Rules Engine ready!")
     return rules_engine, stack_resolver
