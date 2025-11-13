@@ -10,8 +10,9 @@ __pycache__/
 # PDF no longer needed (using pre-processed rules)
 mtgrules.pdf
 
-# Old chroma_db in root (keep rules/chroma_db/)
+# ChromaDB not needed for lightweight version
 /chroma_db/
+rules/chroma_db/
 
 # Test files
 test_*.py

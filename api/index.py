@@ -89,6 +89,87 @@ async def health():
     return {"status": "healthy"}
 
 
+@app.get("/debug")
+async def debug():
+    """Debug endpoint to check file system"""
+    try:
+        from pathlib import Path
+        import json
+
+        result = {
+            "status": "checking",
+            "steps": []
+        }
+
+        # Step 1: Check current directory
+        current_dir = Path(__file__).parent
+        result["steps"].append({
+            "step": "current_dir",
+            "path": str(current_dir),
+            "exists": current_dir.exists()
+        })
+
+        # Step 2: Check parent directory
+        parent_dir = current_dir.parent
+        result["steps"].append({
+            "step": "parent_dir",
+            "path": str(parent_dir),
+            "exists": parent_dir.exists()
+        })
+
+        # Step 3: Check rules directory
+        rules_dir = parent_dir / "rules"
+        result["steps"].append({
+            "step": "rules_dir",
+            "path": str(rules_dir),
+            "exists": rules_dir.exists()
+        })
+
+        # Step 4: Check rules_data.json
+        rules_json = rules_dir / "rules_data.json"
+        result["steps"].append({
+            "step": "rules_json",
+            "path": str(rules_json),
+            "exists": rules_json.exists()
+        })
+
+        # Step 5: Try to load it
+        if rules_json.exists():
+            with open(rules_json, 'r') as f:
+                data = json.load(f)
+            result["steps"].append({
+                "step": "load_json",
+                "success": True,
+                "rules_count": len(data.get("rules", [])),
+                "glossary_count": len(data.get("glossary", {}))
+            })
+
+        # Step 6: Try to import RulesEngineLite
+        try:
+            from rules.engine_lite import RulesEngineLite
+            result["steps"].append({
+                "step": "import_engine",
+                "success": True
+            })
+        except Exception as e:
+            result["steps"].append({
+                "step": "import_engine",
+                "success": False,
+                "error": str(e)
+            })
+
+        result["status"] = "success"
+        return result
+
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @app.get("/api/search-card/{card_name}")
 async def search_card(card_name: str):
     """Search for a card using Scryfall API"""
