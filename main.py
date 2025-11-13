@@ -45,8 +45,8 @@ def get_rules_engine():
     """Lazy initialization of rules engine"""
     global rules_engine, stack_resolver
     if rules_engine is None:
-        print("Initializing Rules Engine (this may take a few minutes)...")
-        rules_engine = RulesEngine(pdf_path="mtgrules.pdf")
+        print("Initializing Rules Engine (loading pre-processed data)...")
+        rules_engine = RulesEngine()  # Uses pre-processed files by default
         stack_resolver = StackResolver(scryfall_client, rules_engine)
         print("Rules Engine ready!")
     return rules_engine, stack_resolver

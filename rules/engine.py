@@ -4,14 +4,14 @@ Uses Claude AI and vector database for intelligent rule retrieval and reasoning
 """
 
 import os
+import json
+from pathlib import Path
 from typing import List, Dict, Optional
 import anthropic
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
-
-from rules.parser import RulesParser
 
 
 class RulesEngine:
@@ -20,15 +20,14 @@ class RulesEngine:
     for answering MTG rules questions
     """
 
-    def __init__(self, pdf_path: str):
+    def __init__(self, use_preprocessed: bool = True):
         """
         Initialize rules engine
 
         Args:
-            pdf_path: Path to MTG rules PDF
+            use_preprocessed: Load from pre-processed files (default: True)
         """
-        self.pdf_path = pdf_path
-        self.parser = RulesParser(pdf_path)
+        self.use_preprocessed = use_preprocessed
         self.rules_data = None
         self.vector_store = None
 
@@ -43,18 +42,62 @@ class RulesEngine:
         self._initialize()
 
     def _initialize(self):
-        """Initialize the rules engine - parse PDF and create vector store"""
+        """Initialize the rules engine - load from pre-processed files"""
         print("Initializing Rules Engine...")
 
-        # Parse PDF
-        print("Parsing MTG rules PDF...")
-        self.rules_data = self.parser.parse_pdf()
-
-        # Create vector store for semantic search
-        print("Creating vector store...")
-        self._create_vector_store()
+        if self.use_preprocessed:
+            # Load from pre-processed files (fast!)
+            self._load_preprocessed()
+        else:
+            # Fallback: parse PDF (slow, for development only)
+            print("WARNING: Parsing PDF - this is slow! Use pre-processed files in production.")
+            from rules.parser import RulesParser
+            self.parser = RulesParser("mtgrules.pdf")
+            self.rules_data = self.parser.parse_pdf()
+            self._create_vector_store()
 
         print("Rules Engine initialized!")
+
+    def _load_preprocessed(self):
+        """Load rules from pre-processed JSON and vector store"""
+        rules_dir = Path(__file__).parent
+
+        # Load rules data from JSON
+        rules_json_path = rules_dir / "rules_data.json"
+        print(f"Loading rules from {rules_json_path}...")
+
+        if not rules_json_path.exists():
+            raise FileNotFoundError(
+                f"Pre-processed rules not found at {rules_json_path}. "
+                "Run 'python preprocess_rules.py' first!"
+            )
+
+        with open(rules_json_path, "r", encoding="utf-8") as f:
+            self.rules_data = json.load(f)
+
+        print(f"✓ Loaded {len(self.rules_data['rules'])} rules")
+        print(f"✓ Loaded {len(self.rules_data['glossary'])} glossary terms")
+
+        # Load vector store
+        vector_store_path = rules_dir / "chroma_db"
+        print(f"Loading vector store from {vector_store_path}...")
+
+        if not vector_store_path.exists():
+            raise FileNotFoundError(
+                f"Vector store not found at {vector_store_path}. "
+                "Run 'python preprocess_rules.py' first!"
+            )
+
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+
+        self.vector_store = Chroma(
+            persist_directory=str(vector_store_path),
+            embedding_function=embeddings
+        )
+
+        print("✓ Vector store loaded")
 
     def _create_vector_store(self):
         """Create a vector store from parsed rules for semantic search"""
@@ -243,4 +286,11 @@ Format your response as JSON with these fields:
         Returns:
             List of stack resolution rules
         """
-        return self.parser.get_stack_rules()
+        # Stack rules are in section 405
+        stack_rules = []
+
+        for rule in self.rules_data["rules"]:
+            if rule["number"].startswith("405") or "stack" in rule["text"].lower():
+                stack_rules.append(rule)
+
+        return stack_rules

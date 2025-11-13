@@ -1,0 +1,36 @@
+# Development files
+.env
+.venv
+venv/
+env/
+__pycache__/
+*.pyc
+.DS_Store
+
+# PDF no longer needed (using pre-processed rules)
+mtgrules.pdf
+
+# Old chroma_db in root (keep rules/chroma_db/)
+/chroma_db/
+
+# Test files
+test_*.py
+example.py
+
+# Documentation
+README.md
+GUIDA_USO.md
+
+# Other deployment configs
+Dockerfile
+docker-compose.yml
+Procfile
+railway.json
+render.yaml
+runtime.txt
+.dockerignore
+.python-version
+
+# Git
+.git/
+.gitignore

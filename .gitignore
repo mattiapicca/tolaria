@@ -10,4 +10,8 @@ ENV/
 .env
 *.log
 .DS_Store
-chroma_db/
+# Keep the old chroma_db in root (from old implementation)
+/chroma_db/
+# But INCLUDE the new pre-processed data in rules/
+!/rules/chroma_db/
+!/rules/rules_data.json
